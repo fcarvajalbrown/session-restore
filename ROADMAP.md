@@ -5,7 +5,7 @@ The goal: shut down for real instead of hibernating, and get the work context ba
 ## Open items
 
 - Phase 1: design of the agent adapter interface needs a decision (ADR) before code.
-- Phase 2: "Save and shut down" and "Save and restart" show in the native Start menu Power flyout (confirmed by Felipe). Pending: confirm a click saves the snapshot and restarts, and that the restore runs after it.
+- Phase 2: "Save and shut down" and "Save and restart" show in the native Start menu Power flyout, but clicking them does nothing: `Launcher::LaunchUriAsync` on the `session-restore:` URI returns false from inside the Start menu's AppContainer (trace: `launch session-restore:shutdown: 0`). A different way for the click to reach a normal-integrity process is needed; the approach of a listener window that accepts messages from the AppContainer was refused by Claude Code's auto-mode classifier as security-weakening and needs Felipe's decision.
 - No ADRs written yet. Each phase below gets its ADR once its design is decided.
 
 ## Phase 0: Windows restore for one agent CLI
