@@ -1,6 +1,10 @@
 # session-restore
 
-Reopens the editors and Claude Code sessions that were open before a restart, and shows a popup listing every session with its folder and a copyable resume line.
+Shut down your Windows PC for real instead of hibernating, and get your work back on the next boot.
+
+Hibernating is easy to fall into because a shutdown throws away what you were doing: which editors were open, on which folders, and which coding-agent sessions were half way through something. session-restore keeps a snapshot of that and reopens it after a restart. It also shows a popup with every session, its folder and a line you can copy to resume it. Resuming from hibernation or sleep does nothing.
+
+Today it handles VS Code, VSCodium, PowerShell and Claude Code. Other agent CLIs are planned through adapters, see [ROADMAP.md](ROADMAP.md).
 
 ## What it does
 
@@ -38,3 +42,7 @@ powershell -ExecutionPolicy Bypass -File Add-Reminder.ps1 -At "2026-10-06 20:00"
 ```
 
 shows the text of `note.txt` in a popup at that time, or at the next start if the computer was off. The task deletes itself a day after it expires.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE).
