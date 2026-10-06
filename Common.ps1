@@ -11,6 +11,11 @@ $PowerMenuEntries = @(
     @{ File = '2 - Save and restart.lnk'; Arguments = '-Restart'; Description = 'Save open sessions, then restart' }
     @{ File = '3 - Save and shut down.lnk'; Arguments = ''; Description = 'Save open sessions, then shut down' }
 )
+$UriScheme = 'session-restore'
+$UriKey = "HKCU:\Software\Classes\$UriScheme"
+$PowerMenuModId = 'local@session-restore-power-menu'
+$PowerMenuModVersion = '1.0.0'
+$PowerMenuModSource = Join-Path $PSScriptRoot 'windhawk\session-restore-power-menu.wh.cpp'
 $ProfileHookLine ="if (Test-Path '$TrackerPath') { . '$TrackerPath' }"
 
 function Get-ShellProfilePaths {

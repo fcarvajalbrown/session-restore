@@ -29,4 +29,11 @@ foreach ($profilePath in Get-ShellProfilePaths) {
     "Folder tracking in $profilePath"
 }
 
-Get-ScheduledTask -TaskName 'SessionRestore*' | ForEach-Object { '{0}: {1}' -f $_.TaskName, $_.State }
+$commandKey = Join-Path $UriKey 'shell\open\command'
+New-Item -Path $commandKey -Force | Out-Null
+Set-Item -Path $UriKey -Value "URL:$UriScheme"
+New-ItemProperty -Path $UriKey -Name 'URL Protocol' -Value '' -PropertyType String -Force | Out-Null
+Set-Item -Path $commandKey -Value "`"$wscript`" `"$launcher`" `"$(Join-Path $here 'Save-AndShutdown.ps1')`" `"-Uri`" `"%1`""
+"URI handler: ${UriScheme}:shutdown, ${UriScheme}:restart"
+
+Get-ScheduledTask -TaskName 'SessionRestore*' |ForEach-Object { '{0}: {1}' -f $_.TaskName, $_.State }
