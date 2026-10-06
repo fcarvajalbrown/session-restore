@@ -1,6 +1,6 @@
 param(
-    [string]$Title = 'Reminder',
-    [string]$TextPath = (Join-Path (Join-Path $env:LOCALAPPDATA 'SessionRestore') 'reminder.txt')
+    [Parameter(Mandatory)][string]$TextPath,
+    [string]$Title = 'Reminder'
 )
 $ErrorActionPreference = 'Stop'
 if (-not (Test-Path $TextPath)) { exit 0 }
