@@ -15,6 +15,7 @@ Status: Done
 - Snapshot every 3 minutes, hidden, tagged with the logon id.
 - Restore at logon only when the logon id changed, so hibernate and sleep resume do nothing.
 - Reopens VS Code and VSCodium, each session's folder in its editor, and one PowerShell window per Claude Code session running `claude --resume <id>`.
+- Plain PowerShell windows outside the editors reopen in the folder they were in, tracked through a profile line.
 - Popup listing every session, with folder and resume line. Silent when there is nothing to restore.
 - One-time reminder popups (`Add-Reminder.ps1`).
 
