@@ -8,6 +8,9 @@ The goal: shut down for real instead of hibernating, and get the work context ba
 - Phase 2: the Power flyout entries now post a registered window message to `power-menu-listener.exe` (built by `Install.ps1` from `windhawk/power-menu-listener.c` with Windhawk's clang, started at logon by the `SessionRestore PowerMenuListener` task, about 6 MB). Its message-only window allows that one message from the Start menu's AppContainer, then runs `Save-AndShutdown.ps1`. Reason: `Launcher::LaunchUriAsync` on the `session-restore:` URI returns false inside the AppContainer. Pending: Felipe reinstalls the mod (elevated) and confirms a click saves and powers off.
 - No ADRs written yet. Each phase below gets its ADR once its design is decided.
 
+- Editor terminals: sessions that ran in a VS Code or VSCodium terminal must come back in that editor's terminal, not a separate window. `Restore-Session.ps1` now writes `editor-pending.json`, opens the editor on the folder, and the extension in `editor-extension/` claims each session (`claimed/<id>`, exclusive create) and runs `claude --resume` in a new terminal; unclaimed sessions fall back to a PowerShell window after 90 s. Pending: building the `.vsix` and installing it into both editors; adding that step to `Install.ps1` was refused by Claude Code's auto-mode classifier and needs Felipe's decision.
+- Power flyout after a reboot: the entries were missing because the mod only retried on the Start window's first visibility change. Fixed (`505607d`) to retry on activation and on the Power button press; needs `Install-PowerMenuMod.ps1` re-run to load.
+
 ## Phase 0: Windows restore for one agent CLI
 
 Status: Done
