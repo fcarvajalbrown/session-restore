@@ -30,3 +30,11 @@ prints what a restore would do from the current snapshot.
 
 - A session that lived in a VS Code terminal comes back in a separate PowerShell window next to the reopened editor, not inside the editor's terminal.
 - A restart within 3 minutes of opening a session can miss it, since the snapshot is up to 3 minutes old.
+
+## Reminders
+
+```
+powershell -ExecutionPolicy Bypass -File Add-Reminder.ps1 -At "2026-10-06 20:00" -TextFile note.txt -Name "My reminder"
+```
+
+shows the text of `note.txt` in a popup at that time, or at the next start if the computer was off. The task deletes itself a day after it expires.
