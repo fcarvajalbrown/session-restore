@@ -1,0 +1,12 @@
+{
+  "name": "session-restore-terminals",
+  "displayName": "Session Restore Terminals",
+  "description": "Reopens agent CLI sessions in the editor terminal after a restart.",
+  "version": "1.0.0",
+  "publisher": "fcarvajalbrown",
+  "license": "MIT",
+  "repository": "https://github.com/fcarvajalbrown/session-restore",
+  "engines": { "vscode": "^1.60.0" },
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js"
+}
