@@ -4,6 +4,8 @@
 
 Hibernating is a habit that sticks because shutting down costs the work context. After a real shutdown you no longer know which editors, folders and terminal sessions were open, or which coding-agent conversation you were in the middle of. Sleep is unreliable on some laptops, and a machine that never shuts down drifts: updates wait, memory leaks pile up, drivers stay in odd states.
 
+The disk cost is concrete. On Felipe's machine (15.8 GB RAM, Windows 10, auto-managed pagefile) after 12 days of hibernating without a restart, `pagefile.sys` had grown to 45.7 GB (peak use 14.3 GB) and `hiberfil.sys` was 6.8 GB. Windows grows an auto-managed pagefile under memory pressure and drops those extensions on restart, so regular real restarts are what keep that space free. The pagefile must stay auto-managed: a fixed 1,600 MB pagefile caused the editor crash storms fixed in July.
+
 ## Goal
 
 Make a full shutdown or restart cost nothing in context. Turn the machine off, turn it on, and the work you had open comes back, or at least a list of it with the exact lines to resume it.
