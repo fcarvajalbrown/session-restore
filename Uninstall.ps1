@@ -1,5 +1,7 @@
 . (Join-Path $PSScriptRoot 'Common.ps1')
 Get-ScheduledTask -TaskName 'SessionRestore*' -ErrorAction SilentlyContinue | Unregister-ScheduledTask -Confirm:$false
+Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($ListenerPath)) -ErrorAction SilentlyContinue | Stop-Process -Force
+Remove-Item -LiteralPath $ListenerPath -Force -ErrorAction SilentlyContinue
 foreach ($profilePath in Get-ShellProfilePaths) {
     if (-not (Test-Path $profilePath)) { continue }
     $kept = @(Get-Content -LiteralPath $profilePath | Where-Object { $_ -ne $ProfileHookLine })

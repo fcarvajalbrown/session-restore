@@ -29,16 +29,18 @@ namespace wuxm = winrt::Windows::UI::Xaml::Media;
 struct PowerMenuEntry {
     const wchar_t* label;
     const wchar_t* glyph;
-    const wchar_t* uri;
+    WPARAM action;
 };
 
 constexpr wchar_t kEntryTag[] = L"session-restore";
 constexpr wchar_t kCallOnThreadMessage[] = L"SessionRestorePowerMenu_CallOnThread";
+constexpr wchar_t kListenerClass[] = L"SessionRestorePowerMenuListener";
+constexpr wchar_t kListenerMessage[] = L"SessionRestorePowerMenu_Execute";
 constexpr UINT_PTR kRetryTimerId = 0x53525057;
 
 constexpr PowerMenuEntry kEntries[] = {
-    {L"Save and shut down", L"", L"session-restore:shutdown"},
-    {L"Save and restart", L"", L"session-restore:restart"},
+    {L"Save and shut down", L"", 0},
+    {L"Save and restart", L"", 1},
 };
 
 std::atomic<bool> g_unloading = false;
@@ -95,14 +97,17 @@ bool IsEntry(wuxc::MenuFlyoutItemBase const& item) {
     return winrt::unbox_value_or<winrt::hstring>(item.Tag(), L"") == kEntryTag;
 }
 
-void LaunchEntry(winrt::hstring const& uri) {
-    try {
-        ws::Launcher::LaunchUriAsync(wf::Uri(uri)).Completed([uri](auto&& operation, auto&&) {
-            Trace(L"launch %s: %d", uri.c_str(), operation.GetResults() ? 1 : 0);
-        });
-    } catch (winrt::hresult_error const& error) {
-        Trace(L"launch %s failed: 0x%08X", uri.c_str(), static_cast<unsigned>(error.code()));
+void SendAction(WPARAM action) {
+    HWND listener = FindWindowExW(HWND_MESSAGE, nullptr, kListenerClass, nullptr);
+    if (!listener) {
+        Trace(L"action %u: listener window not found", static_cast<unsigned>(action));
+        return;
     }
+    DWORD listenerProcessId = 0;
+    GetWindowThreadProcessId(listener, &listenerProcessId);
+    AllowSetForegroundWindow(listenerProcessId);
+    BOOL posted = PostMessageW(listener, RegisterWindowMessageW(kListenerMessage), action, 0);
+    Trace(L"action %u posted: %d (error %lu)", static_cast<unsigned>(action), posted, posted ? 0 : GetLastError());
 }
 
 void RemoveEntries(wuxc::MenuFlyout const& flyout) {
@@ -130,8 +135,8 @@ void AddEntries(wuxc::MenuFlyout const& flyout) {
         item.Text(entry.label);
         item.Icon(icon);
         item.Tag(winrt::box_value(winrt::hstring(kEntryTag)));
-        winrt::hstring uri = entry.uri;
-        item.Click([uri](auto&&, auto&&) { LaunchEntry(uri); });
+        WPARAM action = entry.action;
+        item.Click([action](auto&&, auto&&) { SendAction(action); });
         items.Append(item);
     }
 }

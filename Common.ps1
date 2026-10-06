@@ -15,7 +15,9 @@ $UriScheme = 'session-restore'
 $UriKey = "HKCU:\Software\Classes\$UriScheme"
 $PowerMenuModId = 'local@session-restore-power-menu'
 $PowerMenuModVersion = '1.0.0'
-$PowerMenuModSource = Join-Path $PSScriptRoot 'windhawk\session-restore-power-menu.wh.cpp'
+$ListenerSource = Join-Path $PSScriptRoot 'windhawk\power-menu-listener.c'
+$ListenerPath = Join-Path $StateDir 'power-menu-listener.exe'
+$PowerMenuModSource =Join-Path $PSScriptRoot 'windhawk\session-restore-power-menu.wh.cpp'
 $ProfileHookLine ="if (Test-Path '$TrackerPath') { . '$TrackerPath' }"
 
 function Get-ShellProfilePaths {

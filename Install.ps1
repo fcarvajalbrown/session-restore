@@ -36,4 +36,18 @@ New-ItemProperty -Path $UriKey -Name 'URL Protocol' -Value '' -PropertyType Stri
 Set-Item -Path $commandKey -Value "`"$wscript`" `"$launcher`" `"$(Join-Path $here 'Save-AndShutdown.ps1')`" `"-Uri`" `"%1`""
 "URI handler: ${UriScheme}:shutdown, ${UriScheme}:restart"
 
+$clang = Join-Path $env:ProgramFiles 'Windhawk\Compiler\bin\clang++.exe'
+if (Test-Path $clang) {
+    Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($ListenerPath)) -ErrorAction SilentlyContinue | Stop-Process -Force
+    New-Item -ItemType Directory -Force -Path $StateDir | Out-Null
+    & $clang -x c -O2 -municode -mwindows -target x86_64-w64-mingw32 $ListenerSource -o $ListenerPath -luser32 -lshell32
+    if ($LASTEXITCODE -ne 0) { throw "listener build failed with exit code $LASTEXITCODE" }
+    $listenerTrigger = New-ScheduledTaskTrigger -AtLogOn -User $user
+    $listenerAction = New-ScheduledTaskAction -Execute $ListenerPath -Argument "`"$here`""
+    $listenerSettings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew
+    Register-ScheduledTask -TaskName 'SessionRestore PowerMenuListener' -Action $listenerAction -Trigger $listenerTrigger -Settings $listenerSettings -Principal $principal -Force | Out-Null
+    Start-ScheduledTask -TaskName 'SessionRestore PowerMenuListener'
+    "Power menu listener: $ListenerPath"
+}
+
 Get-ScheduledTask -TaskName 'SessionRestore*' |ForEach-Object { '{0}: {1}' -f $_.TaskName, $_.State }
