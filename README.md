@@ -23,6 +23,12 @@ powershell -ExecutionPolicy Bypass -File Uninstall.ps1
 
 `Install.ps1` registers two scheduled tasks for the current user, `SessionRestore Snapshot` and `SessionRestore Restore`, no admin needed. Both start through `Hidden.vbs`, so no console window flashes. It also adds the folder-tracking line to the Windows PowerShell profile, and to the PowerShell 7 profile when `pwsh` is installed. `Uninstall.ps1` removes the tasks and that line.
 
+## Save and shut down
+
+Right-click the Start button (or press Win+X). Next to "Shut down or sign out" there are two extra entries, "Save and shut down" and "Save and restart". They take a fresh snapshot and then power off, so nothing opened in the last 3 minutes is missed. `Save-AndShutdown.ps1 [-Restart]` does the same from a terminal.
+
+Windows only accepts a Win+X shortcut when it carries a hash of its target. `WinXShortcut.ps1` computes it the same way as [hashlnk](https://github.com/riverar/hashlnk). The entries show up after Explorer restarts or at the next sign-in. Works on Windows 10; newer Windows 11 builds reportedly reject custom Win+X entries.
+
 ## Check without launching anything
 
 ```
