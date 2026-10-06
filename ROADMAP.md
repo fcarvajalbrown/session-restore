@@ -5,7 +5,7 @@ The goal: shut down for real instead of hibernating, and get the work context ba
 ## Open items
 
 - Phase 1: design of the agent adapter interface needs a decision (ADR) before code.
-- Phase 2: the Win+X entries are in place but not yet seen live; Explorer has to reload the Win+X menu before they show.
+- Phase 2: Blocked. Explorer crashed after the Win+X entries were added (see Phase 2). The entries are out of the installer until the cause is known.
 - No ADRs written yet. Each phase below gets its ADR once its design is decided.
 
 ## Phase 0: Windows restore for one agent CLI
@@ -30,11 +30,12 @@ Status: Not Started
 
 ## Phase 2: save at shutdown
 
-Status: In Progress
+Status: Blocked
 
 - Close the 3-minute blind spot: take a fresh snapshot at the moment of shutdown or restart.
 - Wanted: a "Save and shut down" item inside the Start menu Power flyout, next to Shut down and Restart.
-- Done: `Save-AndShutdown.ps1` (snapshot, then shut down, or restart with `-Restart`), and two entries in the native Win+X menu (right-click Start), next to "Shut down or sign out": "Save and shut down" and "Save and restart". `Install.ps1` adds them, `Uninstall.ps1` removes them.
+- Done: `Save-AndShutdown.ps1` (snapshot, then shut down, or restart with `-Restart`), and two entries in the native Win+X menu (right-click Start), next to "Shut down or sign out": "Save and shut down" and "Save and restart". `Uninstall.ps1` removes them.
+- Blocked: after the two shortcuts were written and Explorer was force-restarted, explorer.exe crashed twice at the same offset (0x458aa, access violation 0xc0000005 and 0xc000041d) and the desktop stayed white. Moving the two shortcuts out and starting Explorer brought the shell back. Both were done at once, so it is not known whether the shortcuts or the forced restart caused the crash. `Install.ps1` no longer adds the entries. Never force-restart Explorer on the user's machine to test this; find the cause offline or in a VM.
 
 Findings:
 - The registry and Group Policy only show or hide the built-in entries (Sleep, Hibernate, Lock). No documented key adds a custom entry to the native Power flyout.
