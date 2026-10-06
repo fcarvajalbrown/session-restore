@@ -37,7 +37,7 @@ Status: Not Started
 
 Findings:
 - The registry and Group Policy only show or hide the built-in entries (Sleep, Hibernate, Lock). No documented key adds a custom entry to the native Power flyout.
-- Open-Shell (open source Start menu replacement) supports custom commands inside its shutdown submenu, so a "Save and shut down" entry is possible there, at the cost of replacing the Windows Start menu.
+- Open-Shell (open source Start menu replacement, vendored in `vendor/open-shell`) supports custom commands inside its shutdown submenu only in its Classic and Classic two-column styles (`MenuItems1` / `MenuItems2`, item `ShutdownBoxItem.Items`). Its default Windows 7 style has a fixed shutdown flyout; a custom item there can only go in the main menu columns.
 - Windows sends `WM_QUERYENDSESSION` to every top-level window when a shutdown or restart starts. A hidden listener window can take a snapshot at that moment, which makes the native Shut down and Restart entries save first without changing the menu.
 - A scheduled task on System event 1074 (shutdown initiated) is reported as unreliable: it fires too late or fails under the SYSTEM account.
 - Last resort: a pinned "Save and shut down" Start and taskbar shortcut.
