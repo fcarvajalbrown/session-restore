@@ -5,7 +5,7 @@ The goal: shut down for real instead of hibernating, and get the work context ba
 ## Open items
 
 - Phase 1: design of the agent adapter interface needs a decision (ADR) before code.
-- Phase 2: find a way to put a "Save and shut down" entry in the Start menu Power flyout. Registry is the first lead; no documented method is known yet.
+- Phase 2: pick the route for saving at shutdown. The registry cannot add an entry to the native Power flyout (see Phase 2 findings).
 - No ADRs written yet. Each phase below gets its ADR once its design is decided.
 
 ## Phase 0: Windows restore for one agent CLI
@@ -33,8 +33,14 @@ Status: Not Started
 Status: Not Started
 
 - Close the 3-minute blind spot: take a fresh snapshot at the moment of shutdown or restart.
-- Preferred entry point: a "Save and shut down" item inside the Start menu Power flyout, next to Shut down and Restart. Research how, starting with the registry.
-- Fallbacks if the flyout cannot be changed: catch Windows' end-of-session signal so the existing Shut down and Restart entries save first, or a pinned Start and taskbar shortcut.
+- Wanted: a "Save and shut down" item inside the Start menu Power flyout, next to Shut down and Restart.
+
+Findings:
+- The registry and Group Policy only show or hide the built-in entries (Sleep, Hibernate, Lock). No documented key adds a custom entry to the native Power flyout.
+- Open-Shell (open source Start menu replacement) supports custom commands inside its shutdown submenu, so a "Save and shut down" entry is possible there, at the cost of replacing the Windows Start menu.
+- Windows sends `WM_QUERYENDSESSION` to every top-level window when a shutdown or restart starts. A hidden listener window can take a snapshot at that moment, which makes the native Shut down and Restart entries save first without changing the menu.
+- A scheduled task on System event 1074 (shutdown initiated) is reported as unreliable: it fires too late or fails under the SYSTEM account.
+- Last resort: a pinned "Save and shut down" Start and taskbar shortcut.
 
 ## Phase 3: more apps and windows
 
