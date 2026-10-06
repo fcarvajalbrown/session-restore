@@ -5,7 +5,7 @@ The goal: shut down for real instead of hibernating, and get the work context ba
 ## Open items
 
 - Phase 1: design of the agent adapter interface needs a decision (ADR) before code.
-- Phase 2: Blocked. Explorer crashed after the Win+X entries were added (see Phase 2). The entries are out of the installer until the cause is known.
+- Phase 2: the Power flyout mod is built and compiles; it has not been loaded into the Start menu yet. Next step: run `Install-PowerMenuMod.ps1` (elevated) and check the flyout.
 - No ADRs written yet. Each phase below gets its ADR once its design is decided.
 
 ## Phase 0: Windows restore for one agent CLI
@@ -30,12 +30,15 @@ Status: Not Started
 
 ## Phase 2: save at shutdown
 
-Status: Blocked
+Status: In Progress
 
 - Close the 3-minute blind spot: take a fresh snapshot at the moment of shutdown or restart.
 - Wanted: a "Save and shut down" item inside the Start menu Power flyout, next to Shut down and Restart.
 - Done: `Save-AndShutdown.ps1` (snapshot, then shut down, or restart with `-Restart`), and two entries in the native Win+X menu (right-click Start), next to "Shut down or sign out": "Save and shut down" and "Save and restart". `Uninstall.ps1` removes them.
 - Blocked: after the two shortcuts were written and Explorer was force-restarted, explorer.exe crashed twice at the same offset (0x458aa, access violation 0xc0000005 and 0xc000041d) and the desktop stayed white. Moving the two shortcuts out and starting Explorer brought the shell back. Both were done at once, so it is not known whether the shortcuts or the forced restart caused the crash. `Install.ps1` no longer adds the entries. Never force-restart Explorer on the user's machine to test this; find the cause offline or in a VM.
+
+- Route taken: a Windhawk mod (`windhawk/session-restore-power-menu.wh.cpp`, Windhawk vendored in `vendor/windhawk`) that finds `PowerButton` in the Start menu's XAML tree and appends "Save and shut down" and "Save and restart" to its `MenuFlyout` on every `Opening`. The Start menu host runs in an AppContainer (checked: `TokenIsAppContainer` = 1), so the items call `Launcher::LaunchUriAsync` on a `session-restore:` URI, registered per user by `Install.ps1`, which runs `Save-AndShutdown.ps1 -Uri`. Nothing is injected into Explorer. `Install-PowerMenuMod.ps1` compiles the mod with Windhawk's bundled clang and registers it under `HKLM\SOFTWARE\Windhawk\Engine\Mods`; `-Remove` takes it out.
+- Verified: the mod compiles with Windhawk 1.7.3's clang; the URI handler runs (an unknown `session-restore:test` was logged and ignored).
 
 Findings:
 - The registry and Group Policy only show or hide the built-in entries. Every known key is a show or hide switch: `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\FlyoutMenuSettings` (`ShowSleepOption`, `ShowHibernateOption`, `ShowLockOption`) and `HKLM\SOFTWARE\Microsoft\PolicyManager\default\Start` (`HideShutDown`, `HideRestart` and the like). No key adds a custom entry to the native Power flyout on Windows 10.
