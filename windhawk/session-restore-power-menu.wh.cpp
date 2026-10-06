@@ -150,26 +150,69 @@ wux::FrameworkElement FindPowerButton(wux::DependencyObject const& parent) {
     return nullptr;
 }
 
-wuxc::MenuFlyout FindPowerFlyout(wux::FrameworkElement const& powerButton) {
-    if (auto named = powerButton.FindName(L"PowerButtonMenuFlyout")) {
-        if (auto flyout = named.try_as<wuxc::MenuFlyout>()) {
-            Trace(L"flyout found by name");
-            return flyout;
-        }
+wuxc::MenuFlyout FlyoutNamedFrom(wux::FrameworkElement const& element) {
+    if (auto named = element.FindName(L"PowerButtonMenuFlyout")) {
+        return named.try_as<wuxc::MenuFlyout>();
     }
-    if (auto button = powerButton.try_as<wuxc::Button>()) {
+    return nullptr;
+}
+
+wuxc::MenuFlyout FlyoutOn(wux::FrameworkElement const& element) {
+    if (auto button = element.try_as<wuxc::Button>()) {
         if (auto attached = button.Flyout()) {
             if (auto flyout = attached.try_as<wuxc::MenuFlyout>()) {
-                Trace(L"flyout found on Button.Flyout");
                 return flyout;
             }
         }
     }
-    if (auto attached = wuxcp::FlyoutBase::GetAttachedFlyout(powerButton)) {
-        Trace(L"flyout found as attached flyout: %s", winrt::get_class_name(attached).c_str());
+    if (auto attached = wuxcp::FlyoutBase::GetAttachedFlyout(element)) {
         return attached.try_as<wuxc::MenuFlyout>();
     }
-    Trace(L"no flyout on PowerButton (%s)", winrt::get_class_name(powerButton).c_str());
+    return nullptr;
+}
+
+wuxc::MenuFlyout FindFlyoutBelow(wux::DependencyObject const& parent, int depth) {
+    if (depth > 12) {
+        return nullptr;
+    }
+    int32_t count = wuxm::VisualTreeHelper::GetChildrenCount(parent);
+    for (int32_t index = 0; index < count; ++index) {
+        auto child = wuxm::VisualTreeHelper::GetChild(parent, index);
+        if (auto element = child.try_as<wux::FrameworkElement>()) {
+            if (auto flyout = FlyoutOn(element)) {
+                Trace(L"flyout found on %s '%s'", winrt::get_class_name(element).c_str(), element.Name().c_str());
+                return flyout;
+            }
+            if (auto flyout = FlyoutNamedFrom(element)) {
+                Trace(L"flyout found by name from %s '%s'", winrt::get_class_name(element).c_str(),
+                      element.Name().c_str());
+                return flyout;
+            }
+        }
+        if (auto flyout = FindFlyoutBelow(child, depth + 1)) {
+            return flyout;
+        }
+    }
+    return nullptr;
+}
+
+wuxc::MenuFlyout FindPowerFlyout(wux::FrameworkElement const& powerButton) {
+    if (auto flyout = FlyoutOn(powerButton)) {
+        Trace(L"flyout found on the PowerButton element");
+        return flyout;
+    }
+    if (auto userControl = powerButton.try_as<wuxc::UserControl>()) {
+        if (auto content = userControl.Content().try_as<wux::FrameworkElement>()) {
+            if (auto flyout = FlyoutNamedFrom(content)) {
+                Trace(L"flyout found by name from the view content");
+                return flyout;
+            }
+        }
+    }
+    if (auto flyout = FindFlyoutBelow(powerButton, 0)) {
+        return flyout;
+    }
+    Trace(L"no flyout under PowerButton (%s)", winrt::get_class_name(powerButton).c_str());
     return nullptr;
 }
 
