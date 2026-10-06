@@ -3,6 +3,18 @@ $SnapshotPath = Join-Path $StateDir 'snapshot.json'
 $RestoredMarkerPath = Join-Path $StateDir 'restored-logon.txt'
 $LogPath = Join-Path $StateDir 'restore.log'
 $EditorNames = @('Code.exe', 'VSCodium.exe')
+$ShellNames = @('powershell.exe', 'pwsh.exe')
+$ShellFolderDir = Join-Path $StateDir 'shells'
+$TrackerPath = Join-Path $PSScriptRoot 'Track-ShellFolder.ps1'
+$ProfileHookLine = "if (Test-Path '$TrackerPath') { . '$TrackerPath' }"
+
+function Get-ShellProfilePaths {
+    $documents = [Environment]::GetFolderPath('MyDocuments')
+    Join-Path $documents 'WindowsPowerShell\Microsoft.PowerShell_profile.ps1'
+    if (Get-Command pwsh.exe -ErrorAction SilentlyContinue) {
+        Join-Path $documents 'PowerShell\Microsoft.PowerShell_profile.ps1'
+    }
+}
 
 function Get-LogonId {
     $whoami = Join-Path $env:SystemRoot 'System32\whoami.exe'

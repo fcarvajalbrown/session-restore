@@ -19,4 +19,14 @@ $fromNowTrigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -R
 $snapshotAction = New-ScheduledTaskAction -Execute $wscript -Argument "`"$launcher`" `"$(Join-Path $here 'Save-Snapshot.ps1')`""
 Register-ScheduledTask -TaskName 'SessionRestore Snapshot' -Action $snapshotAction -Trigger @($snapshotTrigger, $fromNowTrigger) -Settings $settings -Principal $principal -Force | Out-Null
 
+. (Join-Path $here 'Common.ps1')
+foreach ($profilePath in Get-ShellProfilePaths) {
+    New-Item -ItemType Directory -Force -Path (Split-Path $profilePath) | Out-Null
+    $existing = if (Test-Path $profilePath) { @(Get-Content -LiteralPath $profilePath) } else { @() }
+    if ($existing -notcontains $ProfileHookLine) {
+        Add-Content -LiteralPath $profilePath -Value $ProfileHookLine -Encoding UTF8
+    }
+    "Folder tracking in $profilePath"
+}
+
 Get-ScheduledTask -TaskName 'SessionRestore*' | ForEach-Object { '{0}: {1}' -f $_.TaskName, $_.State }

@@ -67,6 +67,19 @@ foreach ($session in $sessions) {
     $lines.Add("  reopened in a PowerShell window$where")
 }
 
+foreach ($shellRecord in @($snapshot.Shells)) {
+    if (-not $shellRecord) { continue }
+    $lines.Add('')
+    $lines.Add("PowerShell: $($shellRecord.Folder)")
+    if (-not (Test-Path -LiteralPath $shellRecord.Folder)) {
+        $lines.Add('  NOT reopened: folder missing (drive disconnected?)')
+        continue
+    }
+    $shell = if ($shellRecord.ShellPath -and (Test-Path $shellRecord.ShellPath)) { $shellRecord.ShellPath } else { Join-Path $PSHOME 'powershell.exe' }
+    Start-Launch $shell @('-NoExit') $shellRecord.Folder
+    $lines.Add('  reopened in its folder')
+}
+
 $text = ($lines -join "`r`n").Trim()
 Write-Log ("restore for logon $logonId from snapshot $($snapshot.TakenAt):`r`n$text")
 
@@ -80,7 +93,7 @@ if (-not $text -or $NoPopup) { exit 0 }
 
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Restored after restart: $($sessions.Count) Claude session(s)"
+$form.Text = "Restored after restart: $($sessions.Count) Claude session(s), $(@($snapshot.Shells | Where-Object { $_ }).Count) PowerShell window(s)"
 $form.Size = New-Object System.Drawing.Size(900, 520)
 $form.StartPosition = 'CenterScreen'
 $box = New-Object System.Windows.Forms.TextBox
