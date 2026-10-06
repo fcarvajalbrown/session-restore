@@ -3,6 +3,9 @@
 #undef GetCurrentTime
 
 #include <atomic>
+#include <cstdarg>
+#include <cstdio>
+#include <string>
 
 #include <winrt/base.h>
 #include <winrt/Windows.Foundation.h>
@@ -12,6 +15,7 @@
 #include <winrt/Windows.UI.Xaml.h>
 #include <winrt/Windows.UI.Xaml.Controls.h>
 #include <winrt/Windows.UI.Xaml.Controls.Primitives.h>
+#include <winrt/Windows.UI.Xaml.Input.h>
 #include <winrt/Windows.UI.Xaml.Media.h>
 
 namespace wf = winrt::Windows::Foundation;
@@ -43,6 +47,50 @@ winrt::weak_ref<wuxc::MenuFlyout> g_flyout;
 winrt::event_token g_openingToken{};
 winrt::event_token g_visibilityToken{};
 
+void Trace(const wchar_t* format, ...) {
+    wchar_t message[1024];
+    va_list arguments;
+    va_start(arguments, format);
+    _vsnwprintf_s(message, _TRUNCATE, format, arguments);
+    va_end(arguments);
+    Wh_Log(L"%s", message);
+
+    wchar_t path[MAX_PATH];
+    DWORD length = GetTempPathW(MAX_PATH, path);
+    if (!length || length + 32 >= MAX_PATH) {
+        return;
+    }
+    wcscat_s(path, L"session-restore-power-menu.log");
+    HANDLE file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS,
+                              FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) {
+        return;
+    }
+    SYSTEMTIME now;
+    GetLocalTime(&now);
+    wchar_t line[1100];
+    int lineLength = swprintf_s(line, L"%02u:%02u:%02u %s\r\n", now.wHour, now.wMinute, now.wSecond, message);
+    char utf8[3300];
+    int bytes = WideCharToMultiByte(CP_UTF8, 0, line, lineLength, utf8, sizeof(utf8), nullptr, nullptr);
+    DWORD written = 0;
+    WriteFile(file, utf8, bytes, &written, nullptr);
+    CloseHandle(file);
+}
+
+std::wstring DescribeItems(winrt::Windows::Foundation::Collections::IVector<wuxc::MenuFlyoutItemBase> const& items) {
+    std::wstring description;
+    for (auto const& item : items) {
+        description += winrt::get_class_name(item).c_str();
+        if (auto menuItem = item.try_as<wuxc::MenuFlyoutItem>()) {
+            description += L"('";
+            description += menuItem.Text().c_str();
+            description += L"')";
+        }
+        description += item.Visibility() == wux::Visibility::Visible ? L" " : L"[hidden] ";
+    }
+    return description;
+}
+
 bool IsEntry(wuxc::MenuFlyoutItemBase const& item) {
     return winrt::unbox_value_or<winrt::hstring>(item.Tag(), L"") == kEntryTag;
 }
@@ -50,10 +98,10 @@ bool IsEntry(wuxc::MenuFlyoutItemBase const& item) {
 void LaunchEntry(winrt::hstring const& uri) {
     try {
         ws::Launcher::LaunchUriAsync(wf::Uri(uri)).Completed([uri](auto&& operation, auto&&) {
-            Wh_Log(L"launch %s: %d", uri.c_str(), operation.GetResults() ? 1 : 0);
+            Trace(L"launch %s: %d", uri.c_str(), operation.GetResults() ? 1 : 0);
         });
     } catch (winrt::hresult_error const& error) {
-        Wh_Log(L"launch %s failed: 0x%08X", uri.c_str(), static_cast<unsigned>(error.code()));
+        Trace(L"launch %s failed: 0x%08X", uri.c_str(), static_cast<unsigned>(error.code()));
     }
 }
 
@@ -105,20 +153,76 @@ wux::FrameworkElement FindPowerButton(wux::DependencyObject const& parent) {
 wuxc::MenuFlyout FindPowerFlyout(wux::FrameworkElement const& powerButton) {
     if (auto named = powerButton.FindName(L"PowerButtonMenuFlyout")) {
         if (auto flyout = named.try_as<wuxc::MenuFlyout>()) {
+            Trace(L"flyout found by name");
             return flyout;
         }
     }
     if (auto button = powerButton.try_as<wuxc::Button>()) {
         if (auto attached = button.Flyout()) {
             if (auto flyout = attached.try_as<wuxc::MenuFlyout>()) {
+                Trace(L"flyout found on Button.Flyout");
                 return flyout;
             }
         }
     }
     if (auto attached = wuxcp::FlyoutBase::GetAttachedFlyout(powerButton)) {
+        Trace(L"flyout found as attached flyout: %s", winrt::get_class_name(attached).c_str());
         return attached.try_as<wuxc::MenuFlyout>();
     }
+    Trace(L"no flyout on PowerButton (%s)", winrt::get_class_name(powerButton).c_str());
     return nullptr;
+}
+
+void DescribeOpenPopups() {
+    try {
+        auto popups = wuxm::VisualTreeHelper::GetOpenPopups(wux::Window::Current());
+        Trace(L"open popups: %u", popups.Size());
+        for (auto const& popup : popups) {
+            auto child = popup.Child();
+            Trace(L"popup child: %s", child ? winrt::get_class_name(child).c_str() : L"none");
+            if (auto presenter = child ? child.try_as<wuxc::MenuFlyoutPresenter>() : nullptr) {
+                std::wstring texts;
+                for (auto const& item : presenter.Items()) {
+                    texts += winrt::get_class_name(item).c_str();
+                    if (auto menuItem = item.try_as<wuxc::MenuFlyoutItem>()) {
+                        texts += L"('";
+                        texts += menuItem.Text().c_str();
+                        texts += L"')";
+                    }
+                    texts += L" ";
+                }
+                Trace(L"presenter items: %s", texts.c_str());
+            }
+        }
+    } catch (winrt::hresult_error const& error) {
+        Trace(L"describe popups failed: 0x%08X", static_cast<unsigned>(error.code()));
+    }
+}
+
+wux::Input::PointerEventHandler g_releasedHandler{nullptr};
+winrt::weak_ref<wux::FrameworkElement> g_powerButton;
+
+void UnwatchPowerButton() {
+    if (auto powerButton = g_powerButton.get(); powerButton && g_releasedHandler) {
+        powerButton.RemoveHandler(wux::UIElement::PointerReleasedEvent(), winrt::box_value(g_releasedHandler));
+    }
+    g_releasedHandler = nullptr;
+    g_powerButton = nullptr;
+}
+
+void WatchPowerButton(wux::FrameworkElement const& powerButton) {
+    if (g_powerButton.get() == powerButton) {
+        return;
+    }
+    UnwatchPowerButton();
+    g_releasedHandler = wux::Input::PointerEventHandler([](auto&&, auto&&) {
+        Trace(L"power button released");
+        if (auto queue = ws::DispatcherQueue::GetForCurrentThread()) {
+            queue.TryEnqueue(ws::DispatcherQueuePriority::Low, [] { DescribeOpenPopups(); });
+        }
+    });
+    powerButton.AddHandler(wux::UIElement::PointerReleasedEvent(), winrt::box_value(g_releasedHandler), true);
+    g_powerButton = powerButton;
 }
 
 void DetachFromPowerFlyout() {
@@ -130,6 +234,7 @@ void DetachFromPowerFlyout() {
     }
     g_openingToken = {};
     g_flyout = nullptr;
+    UnwatchPowerButton();
 }
 
 bool AttachToPowerFlyout() {
@@ -153,15 +258,19 @@ bool AttachToPowerFlyout() {
                 return;
             }
             if (auto opened = sender.template try_as<wuxc::MenuFlyout>()) {
+                Trace(L"opening, same flyout: %d, items before: %s", opened == g_flyout.get() ? 1 : 0,
+                      DescribeItems(opened.Items()).c_str());
                 AddEntries(opened);
+                Trace(L"opening, items after: %s", DescribeItems(opened.Items()).c_str());
             }
         });
         g_flyout = flyout;
+        WatchPowerButton(powerButton);
         AddEntries(flyout);
-        Wh_Log(L"attached to the power flyout");
+        Trace(L"attached, items: %s", DescribeItems(flyout.Items()).c_str());
         return true;
     } catch (winrt::hresult_error const& error) {
-        Wh_Log(L"attach failed: 0x%08X", static_cast<unsigned>(error.code()));
+        Trace(L"attach failed: 0x%08X", static_cast<unsigned>(error.code()));
         return false;
     }
 }
