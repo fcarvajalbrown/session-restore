@@ -5,4 +5,7 @@ foreach ($profilePath in Get-ShellProfilePaths) {
     $kept = @(Get-Content -LiteralPath $profilePath | Where-Object { $_ -ne $ProfileHookLine })
     Set-Content -LiteralPath $profilePath -Value $kept -Encoding UTF8
 }
-'SessionRestore tasks and profile line removed. State stays in ' + $StateDir
+foreach ($entry in $PowerMenuEntries) {
+    Remove-Item -LiteralPath (Join-Path $WinXGroupDir $entry.File) -Force -ErrorAction SilentlyContinue
+}
+'SessionRestore tasks, profile line and Win+X entries removed. State stays in ' + $StateDir

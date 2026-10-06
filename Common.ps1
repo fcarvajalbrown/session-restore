@@ -6,7 +6,12 @@ $EditorNames = @('Code.exe', 'VSCodium.exe')
 $ShellNames = @('powershell.exe', 'pwsh.exe')
 $ShellFolderDir = Join-Path $StateDir 'shells'
 $TrackerPath = Join-Path $PSScriptRoot 'Track-ShellFolder.ps1'
-$ProfileHookLine = "if (Test-Path '$TrackerPath') { . '$TrackerPath' }"
+$WinXGroupDir = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows\WinX\Group1'
+$PowerMenuEntries = @(
+    @{ File = '2 - Save and restart.lnk'; Arguments = '-Restart'; Description = 'Save open sessions, then restart' }
+    @{ File = '3 - Save and shut down.lnk'; Arguments = ''; Description = 'Save open sessions, then shut down' }
+)
+$ProfileHookLine ="if (Test-Path '$TrackerPath') { . '$TrackerPath' }"
 
 function Get-ShellProfilePaths {
     $documents = [Environment]::GetFolderPath('MyDocuments')
