@@ -221,40 +221,17 @@ wuxc::MenuFlyout FindPowerFlyout(wux::FrameworkElement const& powerButton) {
     return nullptr;
 }
 
-void DescribeOpenPopups() {
-    try {
-        auto popups = wuxm::VisualTreeHelper::GetOpenPopups(wux::Window::Current());
-        Trace(L"open popups: %u", popups.Size());
-        for (auto const& popup : popups) {
-            auto child = popup.Child();
-            Trace(L"popup child: %s", child ? winrt::get_class_name(child).c_str() : L"none");
-            if (auto presenter = child ? child.try_as<wuxc::MenuFlyoutPresenter>() : nullptr) {
-                std::wstring texts;
-                for (auto const& item : presenter.Items()) {
-                    texts += winrt::get_class_name(item).c_str();
-                    if (auto menuItem = item.try_as<wuxc::MenuFlyoutItem>()) {
-                        texts += L"('";
-                        texts += menuItem.Text().c_str();
-                        texts += L"')";
-                    }
-                    texts += L" ";
-                }
-                Trace(L"presenter items: %s", texts.c_str());
-            }
-        }
-    } catch (winrt::hresult_error const& error) {
-        Trace(L"describe popups failed: 0x%08X", static_cast<unsigned>(error.code()));
-    }
-}
+bool AttachToPowerFlyout();
+void ScheduleAttach();
 
-wux::Input::PointerEventHandler g_releasedHandler{nullptr};
+wux::Input::PointerEventHandler g_pressedHandler{nullptr};
 winrt::weak_ref<wux::FrameworkElement> g_powerButton;
 
 void UnwatchPowerButton() {
-    if (auto powerButton = g_powerButton.get(); powerButton && g_releasedHandler) {
-        powerButton.RemoveHandler(wux::UIElement::PointerReleasedEvent(), winrt::box_value(g_releasedHandler));
+    if (auto powerButton = g_powerButton.get(); powerButton && g_pressedHandler) {
+        powerButton.RemoveHandler(wux::UIElement::PointerPressedEvent(), winrt::box_value(g_pressedHandler));
     }
-    g_releasedHandler = nullptr;
+    g_pressedHandler = nullptr;
     g_powerButton = nullptr;
 }
 
@@ -263,13 +240,15 @@ void WatchPowerButton(wux::FrameworkElement const& powerButton) {
         return;
     }
     UnwatchPowerButton();
-    g_releasedHandler = wux::Input::PointerEventHandler([](auto&&, auto&&) {
-        Trace(L"power button released");
-        if (auto queue = ws::DispatcherQueue::GetForCurrentThread()) {
-            queue.TryEnqueue(ws::DispatcherQueuePriority::Low, [] { DescribeOpenPopups(); });
+    g_pressedHandler = wux::Input::PointerEventHandler([](auto&&, auto&&) {
+        if (!g_flyout.get()) {
+            Trace(L"power button pressed before attach");
+            if (!AttachToPowerFlyout()) {
+                ScheduleAttach();
+            }
         }
     });
-    powerButton.AddHandler(wux::UIElement::PointerReleasedEvent(), winrt::box_value(g_releasedHandler), true);
+    powerButton.AddHandler(wux::UIElement::PointerPressedEvent(), winrt::box_value(g_pressedHandler), true);
     g_powerButton = powerButton;
 }
 
@@ -282,7 +261,6 @@ void DetachFromPowerFlyout() {
     }
     g_openingToken = {};
     g_flyout = nullptr;
-    UnwatchPowerButton();
 }
 
 bool AttachToPowerFlyout() {
@@ -293,7 +271,11 @@ bool AttachToPowerFlyout() {
         auto window = wux::Window::Current();
         auto content = window ? window.Content() : nullptr;
         auto powerButton = content ? FindPowerButton(content) : nullptr;
-        auto flyout = powerButton ? FindPowerFlyout(powerButton) : nullptr;
+        if (!powerButton) {
+            return false;
+        }
+        WatchPowerButton(powerButton);
+        auto flyout = FindPowerFlyout(powerButton);
         if (!flyout) {
             return false;
         }
@@ -306,14 +288,10 @@ bool AttachToPowerFlyout() {
                 return;
             }
             if (auto opened = sender.template try_as<wuxc::MenuFlyout>()) {
-                Trace(L"opening, same flyout: %d, items before: %s", opened == g_flyout.get() ? 1 : 0,
-                      DescribeItems(opened.Items()).c_str());
                 AddEntries(opened);
-                Trace(L"opening, items after: %s", DescribeItems(opened.Items()).c_str());
             }
         });
         g_flyout = flyout;
-        WatchPowerButton(powerButton);
         AddEntries(flyout);
         Trace(L"attached, items: %s", DescribeItems(flyout.Items()).c_str());
         return true;
@@ -323,7 +301,7 @@ bool AttachToPowerFlyout() {
     }
 }
 
-void OnStartVisible() {
+void ScheduleAttach() {
     if (g_unloading || g_flyout.get()) {
         return;
     }
@@ -331,6 +309,8 @@ void OnStartVisible() {
         queue.TryEnqueue(ws::DispatcherQueuePriority::Low, [] { AttachToPowerFlyout(); });
     }
 }
+
+winrt::event_token g_activatedToken{};
 
 bool StartMonitoring() {
     if (g_monitoring) {
@@ -343,13 +323,16 @@ bool StartMonitoring() {
         }
         g_visibilityToken = coreWindow.VisibilityChanged([](auto&&, auto&& args) {
             if (args.Visible()) {
-                OnStartVisible();
+                ScheduleAttach();
+            }
+        });
+        g_activatedToken = coreWindow.Activated([](auto&&, auto&& args) {
+            if (args.WindowActivationState() != wuc::CoreWindowActivationState::Deactivated) {
+                ScheduleAttach();
             }
         });
         g_monitoring = true;
-        if (coreWindow.Visible()) {
-            OnStartVisible();
-        }
+        ScheduleAttach();
         return true;
     } catch (...) {
         return false;
@@ -358,14 +341,21 @@ bool StartMonitoring() {
 
 void StopMonitoring() {
     try {
-        if (auto coreWindow = wuc::CoreWindow::GetForCurrentThread(); coreWindow && g_visibilityToken) {
-            coreWindow.VisibilityChanged(g_visibilityToken);
+        if (auto coreWindow = wuc::CoreWindow::GetForCurrentThread()) {
+            if (g_visibilityToken) {
+                coreWindow.VisibilityChanged(g_visibilityToken);
+            }
+            if (g_activatedToken) {
+                coreWindow.Activated(g_activatedToken);
+            }
         }
     } catch (...) {
     }
     g_visibilityToken = {};
+    g_activatedToken = {};
     try {
         DetachFromPowerFlyout();
+        UnwatchPowerButton();
     } catch (...) {
     }
     g_monitoring = false;
