@@ -29,13 +29,4 @@ foreach ($profilePath in Get-ShellProfilePaths) {
     "Folder tracking in $profilePath"
 }
 
-. (Join-Path $here 'WinXShortcut.ps1')
-$saveScript = Join-Path $here 'Save-AndShutdown.ps1'
-foreach ($entry in $PowerMenuEntries) {
-    $arguments = "`"$launcher`" `"$saveScript`""
-    if ($entry.Arguments) { $arguments += " `"$($entry.Arguments)`"" }
-    New-WinXShortcut -Path (Join-Path $WinXGroupDir $entry.File) -Target $wscript -Arguments $arguments -Icon "$env:SystemRoot\System32\shell32.dll,27" -Description $entry.Description
-    "Win+X entry: $($entry.File)"
-}
-
 Get-ScheduledTask -TaskName 'SessionRestore*' | ForEach-Object { '{0}: {1}' -f $_.TaskName, $_.State }
