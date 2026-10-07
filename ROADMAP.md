@@ -4,6 +4,8 @@ The goal: shut down for real instead of hibernating, and get the work context ba
 
 ## Open items
 
+- Uninstalled on Felipe's machine for now: tasks, profile line, URI handler and listener removed; the Power flyout mod is removed with `Install-PowerMenuMod.ps1 -Remove` (elevated, Felipe runs it). Windhawk stays installed. Reinstall with `Install.ps1` when work resumes.
+
 - Phase 1: design of the agent adapter interface needs a decision (ADR) before code.
 - Phase 2: the Power flyout entries now post a registered window message to `power-menu-listener.exe` (built by `Install.ps1` from `windhawk/power-menu-listener.c` with Windhawk's clang, started at logon by the `SessionRestore PowerMenuListener` task, about 6 MB). Its message-only window allows that one message from the Start menu's AppContainer, then runs `Save-AndShutdown.ps1`. Reason: `Launcher::LaunchUriAsync` on the `session-restore:` URI returns false inside the AppContainer. Pending: Felipe reinstalls the mod (elevated) and confirms a click saves and powers off.
 - No ADRs written yet. Each phase below gets its ADR once its design is decided.
